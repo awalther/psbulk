@@ -12,7 +12,7 @@ PAGESPEED_API_KEY = None
 
 st.title("Google Pagespeed Bulk Tester")
 
-uploaded_file = st.file_uploader("Choose a CSV file with urls")
+uploaded_file = st.file_uploader("Choose a CSV file with domains")
 if uploaded_file is not None:
     data=pd.read_csv(uploaded_file, header=None)
     upload = True
@@ -28,9 +28,6 @@ api_key = True
 
 if upload & (strategy != None) & (PAGESPEED_API_KEY != ""):
 
-# PAGESPEED_API_KEY = "AIzaSyBV48lSWS7JXAaYOKwVmnMWlXY6u46rp-k"
-# strategy = "mobile"
-
     data.columns = ['url']
     data['pagespeed_result'] = pd.np.nan
 
@@ -39,16 +36,26 @@ if upload & (strategy != None) & (PAGESPEED_API_KEY != ""):
     for i, r in data.iterrows():
         st.progress(ii)
 
-        try:
-            url = r['url']
-            u = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?key={PAGESPEED_API_KEY}&strategy={strategy}&url={url}"
-            j = requests.get(u).json()
-            overall_score = j["lighthouseResult"]["categories"]["performance"]["score"] * 100
-            data.loc[i, 'pagespeed_result'] = overall_score
+        urls = [
+            'http://' + r['url'],
+            'https://' + r['url'],
+            'http://www.' + r['url'],
+            'https://www.' + r['url'],
+        ]
 
-        except Exception as e:
-            st.error(f"Exception: {e}")
-            continue
+        retry = True
+        while retry:
+            url = urls.pop()
+            try:
+                u = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?key={PAGESPEED_API_KEY}&strategy={strategy}&url={url}"
+                j = requests.get(u).json()
+                overall_score = j["lighthouseResult"]["categories"]["performance"]["score"] * 100
+                data.loc[i, 'pagespeed_result'] = overall_score
+                retry = False
+
+            except Exception as e:
+                st.error(f"Exception: {e}")
+                continue
 
         ii += 1
 
